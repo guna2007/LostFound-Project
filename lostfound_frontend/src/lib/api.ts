@@ -1,4 +1,5 @@
 import type { IItem, IItemCreate } from '../types/IItem';
+import { MOCK_USER_ID, MOCK_ADMIN_ID } from './utils';
 
 const NETWORK_DELAY_MS = 500;
 
@@ -6,6 +7,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Mock items with reporter_id assigned
 const items: IItem[] = [
   {
     id: 1,
@@ -15,6 +17,7 @@ const items: IItem[] = [
     status: 'LOST',
     is_flagged: true,
     ai_category: 'Accessories',
+    reporter_id: MOCK_USER_ID, // User's item
   },
   {
     id: 2,
@@ -24,6 +27,7 @@ const items: IItem[] = [
     status: 'FOUND',
     is_flagged: false,
     ai_category: 'Keys',
+    reporter_id: 'user-789', // Other user's item
   },
   {
     id: 3,
@@ -33,6 +37,7 @@ const items: IItem[] = [
     status: 'LOST',
     is_flagged: false,
     ai_category: 'Accessories',
+    reporter_id: MOCK_USER_ID, // User's item
   },
   {
     id: 4,
@@ -42,6 +47,7 @@ const items: IItem[] = [
     status: 'FOUND',
     is_flagged: true,
     ai_category: 'Electronics',
+    reporter_id: 'user-555', // Other user's item
   },
   {
     id: 5,
@@ -51,6 +57,7 @@ const items: IItem[] = [
     status: 'LOST',
     is_flagged: false,
     ai_category: 'Documents',
+    reporter_id: MOCK_USER_ID, // User's item
   },
   {
     id: 6,
@@ -60,6 +67,7 @@ const items: IItem[] = [
     status: 'FOUND',
     is_flagged: false,
     ai_category: 'Electronics',
+    reporter_id: 'user-999', // Other user's item
   },
   {
     id: 7,
@@ -69,6 +77,7 @@ const items: IItem[] = [
     status: 'LOST',
     is_flagged: false,
     ai_category: 'Books',
+    reporter_id: 'user-333', // Other user's item
   },
   {
     id: 8,
@@ -78,6 +87,7 @@ const items: IItem[] = [
     status: 'FOUND',
     is_flagged: true,
     ai_category: 'Wearables',
+    reporter_id: MOCK_USER_ID, // User's item
   },
   {
     id: 9,
@@ -87,6 +97,7 @@ const items: IItem[] = [
     status: 'LOST',
     is_flagged: false,
     ai_category: 'Accessories',
+    reporter_id: 'user-222', // Other user's item
   },
   {
     id: 10,
@@ -96,6 +107,7 @@ const items: IItem[] = [
     status: 'FOUND',
     is_flagged: false,
     ai_category: 'Documents',
+    reporter_id: MOCK_USER_ID, // User's item
   },
 ];
 
@@ -112,6 +124,15 @@ export async function fetchItems(filters?: {
     result = result.filter((i) => i.ai_category === filters.category);
   }
   return result;
+}
+
+export async function fetchItemById(id: number): Promise<IItem> {
+  await delay(NETWORK_DELAY_MS);
+  const item = items.find((i) => i.id === id);
+  if (!item) {
+    throw new Error('Item not found');
+  }
+  return item;
 }
 
 export async function createItem(data: IItemCreate): Promise<IItem> {
@@ -149,6 +170,49 @@ export async function deleteItem(id: number): Promise<{ id: number }> {
   if (idx === -1) throw new Error('Item not found');
   items.splice(idx, 1);
   return { id };
+}
+
+// Authentication API (Mock)
+export interface AuthResponse {
+  token: string;
+  userId: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  await delay(NETWORK_DELAY_MS);
+  
+  // Mock credentials
+  if (email === 'admin@lostfound.com' && password === 'admin123') {
+    return {
+      token: 'mock-admin-token-' + Date.now(),
+      userId: MOCK_ADMIN_ID,
+      email: 'admin@lostfound.com',
+      role: 'ADMIN',
+    };
+  }
+  
+  if (email === 'user@lostfound.com' && password === 'user123') {
+    return {
+      token: 'mock-user-token-' + Date.now(),
+      userId: MOCK_USER_ID,
+      email: 'user@lostfound.com',
+      role: 'USER',
+    };
+  }
+  
+  throw new Error('Invalid email or password');
+}
+
+export async function register(email: string, password: string, name: string): Promise<{ success: boolean; message: string }> {
+  await delay(NETWORK_DELAY_MS);
+  
+  // Mock registration - always succeeds
+  return {
+    success: true,
+    message: 'Registration successful! Please login with your credentials.',
+  };
 }
 
 

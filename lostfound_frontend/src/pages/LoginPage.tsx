@@ -1,22 +1,36 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/lib/hooks';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login, isLoggedIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Redirect if already logged in
+  if (isLoggedIn) {
+    navigate('/dashboard');
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('token', 'mock-token');
-      setLoading(false);
+    
+    try {
+      await login(email, password);
+      toast.success('Login successful!');
       navigate('/dashboard');
-    }, 800);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -36,6 +50,15 @@ export default function LoginPage() {
             Don't have an account? <Link to="/register" className="text-blue-700 hover:underline">Register</Link>
           </div>
         </form>
+        
+        {/* Demo Credentials */}
+        <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-blue-900">Demo Credentials:</p>
+          <div className="space-y-1 text-xs text-blue-800">
+            <p><strong>User:</strong> user@lostfound.com / user123</p>
+            <p><strong>Admin:</strong> admin@lostfound.com / admin123</p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { register } from '@/lib/api';
+import { useAuth } from '@/lib/hooks';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,15 +16,36 @@ export default function RegisterPage() {
   const [accept, setAccept] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  // Redirect if already logged in
+  if (isLoggedIn) {
+    navigate('/dashboard');
+    return null;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirm || !accept) return;
+    
+    if (password !== confirm) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    if (!accept) {
+      toast.error('Please accept the Terms & Conditions');
+      return;
+    }
+    
     setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('token', 'mock-token');
+    
+    try {
+      const result = await register(email, password, name);
+      toast.success(result.message);
+      navigate('/login');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Registration failed');
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 800);
+    }
   }
 
   return (

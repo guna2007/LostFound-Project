@@ -2,6 +2,10 @@ export function cn(...args: string[]): string {
   return args.filter(Boolean).join(' ');
 }
 
+// Mock user IDs for development/testing
+export const MOCK_USER_ID = 'user-123';
+export const MOCK_ADMIN_ID = 'admin-456';
+
 export const ITEM_CATEGORIES: string[] = [
   'Electronics',
   'Documents',

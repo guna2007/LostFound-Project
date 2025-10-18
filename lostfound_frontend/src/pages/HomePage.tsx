@@ -1,14 +1,21 @@
 import { useItems } from '@/lib/hooks';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
 export default function HomePage() {
-  const { data: items = [], isLoading } = useItems();
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [itemsToShow, setItemsToShow] = useState(6);
+  
+  const { data: items = [], isLoading } = useItems({ sortBy });
+  const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const total = items.length;
   const totalLost = items.filter((i) => i.status === 'LOST').length;
   const totalFound = items.filter((i) => i.status === 'FOUND').length;
+  
+  const displayedItems = items.slice(0, itemsToShow);
+  const hasMore = itemsToShow < items.length;
 
   return (
     <>
@@ -96,11 +103,26 @@ export default function HomePage() {
 
         {/* Items Preview with Better Cards */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-3xl font-bold text-gray-900">Recent Items</h2>
-            <Link to="/lost" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-              View All →
-            </Link>
+            <div className="flex items-center gap-4">
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="sort" className="text-sm font-medium text-gray-700">Sort:</label>
+                <select
+                  id="sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+              </div>
+              <Link to="/lost" className="text-sm font-semibold text-blue-600 hover:text-blue-700 whitespace-nowrap">
+                View All →
+              </Link>
+            </div>
           </div>
 
           {isLoading && (
@@ -130,11 +152,12 @@ export default function HomePage() {
           )}
 
           {!isLoading && items.length > 0 && (
+            <>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {items.slice(0, 6).map(item => (
+              {displayedItems.map(item => (
                 <div 
                   key={item.id} 
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => navigate(`/item/${item.id}`)}
                   className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-xl hover:scale-[1.02]"
                 >
                   <div className="overflow-hidden rounded-xl">
@@ -172,6 +195,22 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="flex justify-center pt-8">
+                <button
+                  onClick={() => setItemsToShow(prev => prev + 6)}
+                  className="group flex items-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-8 py-3 font-semibold text-blue-600 transition-all hover:bg-blue-600 hover:text-white"
+                >
+                  <span>Load More Items</span>
+                  <svg className="h-5 w-5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            </>
           )}
         </section>
 

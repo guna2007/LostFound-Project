@@ -1,9 +1,12 @@
 import { useItems } from '@/lib/hooks';
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ITEM_CATEGORIES } from '@/lib/utils';
 
 export default function LostItemsPage() {
-  const { data: items = [], isLoading } = useItems();
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const { data: items = [], isLoading } = useItems({ sortBy });
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -67,8 +70,9 @@ export default function LostItemsPage() {
             )}
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {/* Category Filter and Sort */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <button
               onClick={() => setSelectedCategory('all')}
               className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
@@ -92,6 +96,21 @@ export default function LostItemsPage() {
                 {category}
               </button>
             ))}
+            </div>
+            
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort-lost" className="text-sm font-medium text-gray-700">Sort:</label>
+              <select
+                id="sort-lost"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -141,7 +160,7 @@ export default function LostItemsPage() {
             {filteredItems.map((item) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => navigate(`/item/${item.id}`)}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-xl hover:scale-[1.02]"
               >
                 <div className="overflow-hidden rounded-xl">

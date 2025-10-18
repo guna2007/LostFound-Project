@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ITEM_CATEGORIES } from '@/lib/utils';
+import { ITEM_CATEGORIES, MOCK_USER_ID } from '@/lib/utils';
+import { useAddItem, useAuth } from '@/lib/hooks';
 
 export default function ReportFoundPage() {
   const navigate = useNavigate();
+  const { userId } = useAuth();
+  const addItemMutation = useAddItem();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -37,15 +40,27 @@ export default function ReportFoundPage() {
 
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success('Found item reported successfully!');
-    setIsSubmitting(false);
-    
-    // Reset form and navigate
-    setFormData({ title: '', description: '', category: '', location: '', imageUrl: '' });
-    setTimeout(() => navigate('/dashboard'), 1500);
+    try {
+      await addItemMutation.mutateAsync({
+        title: formData.title,
+        description: formData.description,
+        ai_category: formData.category,
+        location: formData.location,
+        image_url: formData.imageUrl || `https://placedog.net/400/400?id=${Date.now()}`,
+        status: 'FOUND',
+        reporter_id: userId || MOCK_USER_ID,
+      });
+      
+      toast.success('Found item reported successfully!');
+      
+      // Reset form and navigate
+      setFormData({ title: '', description: '', category: '', location: '', imageUrl: '' });
+      setTimeout(() => navigate('/dashboard'), 1500);
+    } catch (error) {
+      toast.error('Failed to report item. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
