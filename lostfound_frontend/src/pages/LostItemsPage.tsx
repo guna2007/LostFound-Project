@@ -5,14 +5,14 @@ import { ITEM_CATEGORIES } from '@/lib/utils';
 
 export default function LostItemsPage() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
-  const { data: items = [], isLoading } = useItems({ sortBy });
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const { data: items = [], isLoading } = useItems({ sortBy, status: 'LOST', category: selectedCategory !== 'all' ? selectedCategory : undefined, query: searchQuery || undefined });
+  const navigate = useNavigate();
 
   const filteredItems = useMemo(() => {
-    let filtered = items.filter((i) => i.status === 'LOST');
+  let filtered = items; // already filtered via backend params
     
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();

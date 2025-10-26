@@ -1,4 +1,4 @@
-import { IItem } from '@/types/IItem';
+import type { IItem } from '@/types/IItem';
 import { STATUS_COLORS, getCategoryColor, cn } from '@/lib/utils';
 
 export interface ItemCardProps {

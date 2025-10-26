@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toastSuccess } from '@/lib/ui/toast';
 import { useAuth } from '@/lib/hooks';
 
 function NavLink({ to, label }: { to: string; label: string }) {
@@ -28,7 +28,7 @@ export default function Header() {
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully');
+    toastSuccess('Logged out successfully');
     navigate('/');
     setOpen(false);
   };

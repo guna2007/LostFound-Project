@@ -1,11 +1,11 @@
-import { IItem } from '@/types/IItem';
+import type { IItem } from '@/types/IItem';
 import { STATUS_COLORS, getCategoryColor, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 
 export interface AdminItemRowProps {
   item: IItem;
-  onApprove: (id: number) => void;
-  onReject: (id: number) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
   isLoading?: boolean;
 }
 

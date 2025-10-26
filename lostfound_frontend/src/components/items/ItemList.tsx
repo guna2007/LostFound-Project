@@ -1,9 +1,9 @@
-import { IItem } from '@/types/IItem';
+import type { IItem } from '@/types/IItem';
 import ItemCard from './ItemCard';
 
 export interface ItemListProps {
   items: IItem[];
-  onItemClick: (id: number) => void;
+  onItemClick: (id: string) => void;
   isLoading?: boolean;
   emptyMessage?: string;
 }

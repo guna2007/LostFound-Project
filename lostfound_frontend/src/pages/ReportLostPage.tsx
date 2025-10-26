@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toastSuccess, toastError } from '@/lib/ui/toast';
 import { ITEM_CATEGORIES, MOCK_USER_ID } from '@/lib/utils';
 import { useAddItem, useAuth } from '@/lib/hooks';
 
@@ -22,19 +22,19 @@ export default function ReportLostPage() {
     
     // Validation
     if (!formData.title.trim()) {
-      toast.error('Please enter an item title');
+      toastError('Please enter an item title');
       return;
     }
     if (!formData.description.trim()) {
-      toast.error('Please provide a description');
+      toastError('Please provide a description');
       return;
     }
     if (!formData.category) {
-      toast.error('Please select a category');
+      toastError('Please select a category');
       return;
     }
     if (!formData.location.trim()) {
-      toast.error('Please specify where you lost the item');
+      toastError('Please specify where you lost the item');
       return;
     }
 
@@ -51,13 +51,13 @@ export default function ReportLostPage() {
         reporter_id: userId || MOCK_USER_ID,
       });
       
-      toast.success('Lost item reported successfully!');
+  toastSuccess('Lost item reported successfully!');
       
       // Reset form and navigate
       setFormData({ title: '', description: '', category: '', location: '', imageUrl: '' });
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (error) {
-      toast.error('Failed to report item. Please try again.');
+      toastError('Failed to report item. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

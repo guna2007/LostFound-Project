@@ -1,42 +1,16 @@
-import { IItem } from '@/types/IItem';
+import type { IItem } from '@/types/IItem';
 import AdminItemRow from './AdminItemRow';
-import { useDeleteItem, useItems, useUpdateItem } from '@/lib/hooks';
-import toast from 'react-hot-toast';
+// Removed internal hooks and toast; actions are now passed as props
 
 export interface AdminItemTableProps {
-  items?: IItem[];
+  items: IItem[];
   isLoading?: boolean;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }
 
-export default function AdminItemTable({ items, isLoading }: AdminItemTableProps) {
-  const { data, isLoading: isFetching } = useItems();
-  const flagged = (items ?? data ?? []).filter((i) => i.is_flagged);
-  const loading = isLoading || isFetching;
-
-  const { mutateAsync: updateItem, isPending: approving } = useUpdateItem();
-  const { mutateAsync: deleteItem, isPending: rejecting } = useDeleteItem();
-
-  async function handleApprove(id: number) {
-    try {
-      await updateItem({ id, data: { is_flagged: false } });
-      toast.success('Item approved');
-    } catch {
-      toast.error('Failed to approve item');
-    }
-  }
-
-  async function handleReject(id: number) {
-    const confirmed = window.confirm('Are you sure you want to reject and remove this item?');
-    if (!confirmed) return;
-    try {
-      await deleteItem({ id });
-      toast.success('Item rejected and removed');
-    } catch {
-      toast.error('Failed to reject item');
-    }
-  }
-
-  if (loading) {
+export default function AdminItemTable({ items, isLoading, onApprove, onReject }: AdminItemTableProps) {
+  if (isLoading) {
     return (
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -46,7 +20,8 @@ export default function AdminItemTable({ items, isLoading }: AdminItemTableProps
     );
   }
 
-  if (flagged.length === 0) {
+  // Always display all items passed as props, no additional filtering
+  if (!items || items.length === 0) {
     return <div className="rounded border bg-white p-6 text-center text-gray-600">No flagged items</div>;
   }
 
@@ -65,13 +40,13 @@ export default function AdminItemTable({ items, isLoading }: AdminItemTableProps
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {flagged.map((item) => (
+          {items.map((item) => (
             <AdminItemRow
               key={item.id}
               item={item}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              isLoading={approving || rejecting}
+              onApprove={onApprove}
+              onReject={onReject}
+              isLoading={isLoading}
             />
           ))}
         </tbody>

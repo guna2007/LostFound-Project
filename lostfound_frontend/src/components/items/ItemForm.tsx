@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import toast from 'react-hot-toast';
-import { IItem } from '@/types/IItem';
-import { ITEM_CATEGORIES } from '@/lib/utils';
-import { useAddItem, useUpdateItem } from '@/lib/hooks';
+import { toastSuccess, toastError } from '@/lib/ui/toast';
+import type { IItem } from '@/types/IItem';
+import { ITEM_CATEGORIES, MOCK_USER_ID } from '@/lib/utils';
+import { useAddItem, useUpdateItem, useAuth } from '@/lib/hooks';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -34,6 +34,7 @@ export default function ItemForm({ item, onSuccess, onCancel, defaultStatus = 'l
   const isEdit = Boolean(item);
   const { mutateAsync: addItem, isPending: isCreating } = useAddItem();
   const { mutateAsync: updateItem, isPending: isUpdating } = useUpdateItem();
+  const auth = useAuth();
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemSchema),
@@ -67,7 +68,7 @@ export default function ItemForm({ item, onSuccess, onCancel, defaultStatus = 'l
             contact_info: values.contact_info,
           },
         });
-        toast.success('Item updated');
+  toastSuccess('Item updated');
       } else {
         await addItem({
           title: values.title,
@@ -75,17 +76,18 @@ export default function ItemForm({ item, onSuccess, onCancel, defaultStatus = 'l
           image_url: values.image_url || 'https://via.placeholder.com/400?text=Item',
           status: values.status.toUpperCase() as 'LOST' | 'FOUND',
           ai_category: values.category,
+          reporter_id: auth.userId ?? MOCK_USER_ID,
           location: values.location,
           date: values.date,
           contact_info: values.contact_info,
         });
-        toast.success('Item created');
+  toastSuccess('Item created');
         form.reset();
       }
       onSuccess?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong';
-      toast.error(message);
+      toastError(message);
     }
   }
 

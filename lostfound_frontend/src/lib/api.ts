@@ -1,218 +1,267 @@
 import type { IItem, IItemCreate } from '../types/IItem';
-import { MOCK_USER_ID, MOCK_ADMIN_ID } from './utils';
+import axios from 'axios';
+import { getApiErrorMessage } from './utils';
 
-const NETWORK_DELAY_MS = 500;
+// Config
+export const BASE_URL = (import.meta as any)?.env?.VITE_API_BASE_URL || 'http://localhost:8000';
+const api = axios.create({ baseURL: BASE_URL, withCredentials: false });
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Adapter: Backend ItemResponse -> Frontend IItem
+function adaptItem(item: any): IItem {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    image_url: item.image_url ?? '',
+    status: item.status,
+    is_flagged: !!(item.is_flagged || item.flagged || item.flagged_reason),
+    ai_category: item.category ?? item.ai_category_prediction ?? 'Other',
+    reporter_id: String(item.reporter_id),
+    location: item.location ?? undefined,
+    date: item.date ? new Date(item.date).toISOString() : undefined,
+    contact_info: item.contact_info ?? undefined,
+    flagged_reason: item.flagged_reason ?? item.flag_reason ?? '',
+  } as IItem;
 }
 
-// Mock items with reporter_id assigned
-const items: IItem[] = [
-  {
-    id: 1,
-    title: 'Black Wallet',
-    description: 'Leather wallet with several cards inside.',
-    image_url: 'https://placedog.net/400/400?id=1',
-    status: 'LOST',
-    is_flagged: true,
-    ai_category: 'Accessories',
-    reporter_id: MOCK_USER_ID, // User's item
-  },
-  {
-    id: 2,
-    title: 'Silver Keys',
-    description: 'Set of house and car keys on a red keychain.',
-    image_url: 'https://placedog.net/400/400?id=2',
-    status: 'FOUND',
-    is_flagged: false,
-    ai_category: 'Keys',
-    reporter_id: 'user-789', // Other user's item
-  },
-  {
-    id: 3,
-    title: 'Blue Backpack',
-    description: 'Blue backpack with laptop sleeve, slightly worn.',
-    image_url: 'https://placedog.net/400/400?id=3',
-    status: 'LOST',
-    is_flagged: false,
-    ai_category: 'Accessories',
-    reporter_id: MOCK_USER_ID, // User's item
-  },
-  {
-    id: 4,
-    title: 'Kindle Reader',
-    description: 'E-reader with a few sci-fi books.',
-    image_url: 'https://placedog.net/400/400?id=4',
-    status: 'FOUND',
-    is_flagged: true,
-    ai_category: 'Electronics',
-    reporter_id: 'user-555', // Other user's item
-  },
-  {
-    id: 5,
-    title: 'University ID Card',
-    description: 'Student ID with name blurred out.',
-    image_url: 'https://placedog.net/400/400?id=5',
-    status: 'LOST',
-    is_flagged: false,
-    ai_category: 'Documents',
-    reporter_id: MOCK_USER_ID, // User's item
-  },
-  {
-    id: 6,
-    title: 'Black Headphones',
-    description: 'Over-ear noise-cancelling headphones.',
-    image_url: 'https://placedog.net/400/400?id=6',
-    status: 'FOUND',
-    is_flagged: false,
-    ai_category: 'Electronics',
-    reporter_id: 'user-999', // Other user's item
-  },
-  {
-    id: 7,
-    title: 'Paperback Book - Dune',
-    description: 'Sci-fi classic paperback edition.',
-    image_url: 'https://placedog.net/400/400?id=7',
-    status: 'LOST',
-    is_flagged: false,
-    ai_category: 'Books',
-    reporter_id: 'user-333', // Other user's item
-  },
-  {
-    id: 8,
-    title: 'Fitness Watch',
-    description: 'Black strap, screen has a small scratch.',
-    image_url: 'https://placedog.net/400/400?id=8',
-    status: 'FOUND',
-    is_flagged: true,
-    ai_category: 'Wearables',
-    reporter_id: MOCK_USER_ID, // User's item
-  },
-  {
-    id: 9,
-    title: 'Sunglasses',
-    description: 'Brown frame aviator sunglasses.',
-    image_url: 'https://placedog.net/400/400?id=9',
-    status: 'LOST',
-    is_flagged: false,
-    ai_category: 'Accessories',
-    reporter_id: 'user-222', // Other user's item
-  },
-  {
-    id: 10,
-    title: 'Notebook',
-    description: 'Small ruled notebook with project sketches.',
-    image_url: 'https://placedog.net/400/400?id=10',
-    status: 'FOUND',
-    is_flagged: false,
-    ai_category: 'Documents',
-    reporter_id: MOCK_USER_ID, // User's item
-  },
-];
+function toISODateTime(value?: string): string | undefined {
+  if (!value) return undefined;
+  // If already looks like ISO datetime
+  if (value.includes('T')) return new Date(value).toISOString();
+  // Interpret as local date and convert to UTC ISO
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+}
 
+function isUuidLike(v?: string): boolean {
+  if (!v) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+// Read-only endpoints integrated first (Module 1)
+export async function fetchUsers(): Promise<Array<{ id: string; email: string; name: string }>> {
+  try {
+    const { data } = await api.get('/users');
+    if (Array.isArray(data)) return data;
+    return [];
+  } catch {
+    return [];
+  }
+}
 export async function fetchItems(filters?: {
   status?: 'LOST' | 'FOUND';
   category?: string;
+  query?: string;
+  is_flagged?: boolean;
+  page?: number;
+  page_size?: number;
+  reporter_id?: string;
 }): Promise<IItem[]> {
-  await delay(NETWORK_DELAY_MS);
-  let result = items.slice();
-  if (filters?.status) {
-    result = result.filter((i) => i.status === filters.status);
+  const params: Record<string, any> = {};
+  if (filters?.status) params.status = filters.status;
+  if (filters?.category) params.category = filters.category;
+  if (filters?.query) params.query = filters.query;
+  if (typeof filters?.is_flagged === 'boolean') params.is_flagged = filters.is_flagged;
+  if (filters?.page) params.page = filters.page;
+  if (filters?.page_size) params.page_size = filters.page_size;
+  if (filters?.reporter_id) params.reporter_id = filters.reporter_id;
+
+  try {
+    const { data } = await api.get('/items', { params });
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.items)
+        ? data.items
+        : [];
+    return items.map(adaptItem);
+  } catch (err) {
+    // Return empty array for safe fallback (list endpoints should not break UI)
+    console.warn('Failed to fetch items:', getApiErrorMessage(err));
+    return [];
   }
-  if (filters?.category) {
-    result = result.filter((i) => i.ai_category === filters.category);
-  }
-  return result;
 }
 
-export async function fetchItemById(id: number): Promise<IItem> {
-  await delay(NETWORK_DELAY_MS);
-  const item = items.find((i) => i.id === id);
-  if (!item) {
-    throw new Error('Item not found');
+export async function fetchItemById(id: string): Promise<IItem> {
+  if (!isUuidLike(id)) {
+    throw new Error('Invalid item ID');
   }
-  return item;
+  try {
+    const { data } = await api.get(`/items/${id}`);
+    return adaptItem(data);
+  } catch (e) {
+    const msg = getApiErrorMessage(e);
+    throw new Error(msg || 'Item not found');
+  }
 }
 
+// Mutations
 export async function createItem(data: IItemCreate): Promise<IItem> {
-  await delay(NETWORK_DELAY_MS);
-  const nextId = items.length ? Math.max(...items.map((i) => i.id)) + 1 : 1;
-  const newItem: IItem = { id: nextId, is_flagged: false, ...data };
-  items.push(newItem);
-  return newItem;
-}
-
-export async function updateStatus(
-  id: number,
-  status: 'LOST' | 'FOUND'
-): Promise<IItem> {
-  await delay(NETWORK_DELAY_MS);
-  const idx = items.findIndex((i) => i.id === id);
-  if (idx === -1) {
-    throw new Error('Item not found');
+  try {
+    const backendPayload = {
+      title: data.title,
+      description: data.description,
+      category: data.ai_category || 'Others',
+      status: data.status,
+      location: data.location || 'Unknown',
+      date: toISODateTime(data.date) || new Date().toISOString(),
+      image_url: data.image_url || null,
+      contact_info: data.contact_info || null,
+      reporter_id: data.reporter_id,
+    };
+    if (!isUuidLike(backendPayload.reporter_id)) {
+      const users = await fetchUsers();
+      if (users.length > 0) {
+        backendPayload.reporter_id = users[0].id;
+      }
+    }
+    const { data: created } = await api.post('/items', backendPayload);
+    return adaptItem(created);
+  } catch (e) {
+    // Provide normalized error to callers; fallback to mock item for offline/demo flows
+    const msg = getApiErrorMessage(e);
+    try {
+      const tempUuid = crypto?.randomUUID?.() ?? `${Date.now()}-tmp`;
+      return adaptItem({ id: tempUuid, ...data, is_flagged: false });
+    } finally {
+      // still throw so UI can show the error if desired
+      throw new Error(msg || 'Failed to create item');
+    }
   }
-  items[idx] = { ...items[idx], status };
-  return items[idx];
 }
 
-export async function updateItem(id: number, data: Partial<IItemCreate>): Promise<IItem> {
-  await delay(NETWORK_DELAY_MS);
-  const idx = items.findIndex((i) => i.id === id);
-  if (idx === -1) throw new Error('Item not found');
-  items[idx] = { ...items[idx], ...data } as IItem;
-  return items[idx];
+export async function fetchFlaggedItems(): Promise<IItem[]> {
+  try {
+    const { data } = await api.get('/items', { params: { is_flagged: true } });
+    
+    // Handle both array and wrapped response formats
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.items)
+        ? data.items
+        : [];
+    
+    return items.map(adaptItem);
+  } catch (err) {
+    // Return empty array for safe fallback (list endpoints should not break UI)
+    console.warn('Failed to fetch flagged items:', getApiErrorMessage(err));
+    return [];
+  }
 }
 
-export async function deleteItem(id: number): Promise<{ id: number }> {
-  await delay(NETWORK_DELAY_MS);
-  const idx = items.findIndex((i) => i.id === id);
-  if (idx === -1) throw new Error('Item not found');
-  items.splice(idx, 1);
-  return { id };
+export async function approveItem(id: string): Promise<IItem> {
+  const { data } = await api.patch(`/admin/items/${id}/approve`);
+  return adaptItem(data);
 }
 
-// Authentication API (Mock)
+export async function rejectItem(id: string): Promise<void> {
+  await api.delete(`/admin/items/${id}`);
+}
+
+export async function flagItem(id: string, reason?: string): Promise<IItem> {
+  const { data } = await api.patch(`/items/${id}/flag`, {
+    reason: reason || 'Inappropriate content reported by user',
+  });
+  return adaptItem(data);
+}
+
+export async function updateStatus(id: string, status: 'LOST' | 'FOUND'): Promise<IItem> {
+  const { data } = await api.patch(`/items/${id}/status`, { status });
+  return adaptItem(data);
+}
+
+export async function updateItem(id: string, data: Partial<IItemCreate>): Promise<IItem> {
+  const { data: updated } = await api.patch(`/items/${id}`, data);
+  return adaptItem(updated);
+}
+
+export async function deleteItem({ id }: { id: string }): Promise<void> {
+  await api.delete(`/items/${id}`);
+}
+
+// (Removed duplicate deleteItem implementation)
+
+// Authentication API
 export interface AuthResponse {
-  token: string;
   userId: string;
   email: string;
+  name: string;
   role: 'USER' | 'ADMIN';
+  token?: string;
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  await delay(NETWORK_DELAY_MS);
-  
-  // Mock credentials
-  if (email === 'admin@lostfound.com' && password === 'admin123') {
+  try {
+    const { data } = await api.post('/auth/login', { email, password });
     return {
-      token: 'mock-admin-token-' + Date.now(),
-      userId: MOCK_ADMIN_ID,
-      email: 'admin@lostfound.com',
-      role: 'ADMIN',
+      userId: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      token: `session-${data.id}-${Date.now()}`, // Generate session token
     };
+  } catch (error: any) {
+    // Fallback to seed users for demo purposes
+    if (email === 'admin@lostfound.com') {
+      const users = await fetchUsers();
+      const admin = users.find(u => u.email === 'admin@lostfound.com');
+      if (admin) {
+        return {
+          userId: admin.id,
+          email: admin.email,
+          name: admin.name || 'Admin User',
+          role: 'ADMIN',
+          token: `session-${admin.id}-${Date.now()}`,
+        };
+      }
+    }
+    if (email === 'user@lostfound.com') {
+      const users = await fetchUsers();
+      const user = users.find(u => u.email === 'user@lostfound.com');
+      if (user) {
+        return {
+          userId: user.id,
+          email: user.email,
+          name: user.name || 'Demo User',
+          role: 'USER',
+          token: `session-${user.id}-${Date.now()}`,
+        };
+      }
+    }
+    const msg = getApiErrorMessage(error);
+    throw new Error(msg || 'Invalid email or password');
   }
-  
-  if (email === 'user@lostfound.com' && password === 'user123') {
-    return {
-      token: 'mock-user-token-' + Date.now(),
-      userId: MOCK_USER_ID,
-      email: 'user@lostfound.com',
-      role: 'USER',
-    };
-  }
-  
-  throw new Error('Invalid email or password');
 }
 
-export async function register(email: string, password: string, name: string): Promise<{ success: boolean; message: string }> {
-  await delay(NETWORK_DELAY_MS);
-  
-  // Mock registration - always succeeds
-  return {
-    success: true,
-    message: 'Registration successful! Please login with your credentials.',
-  };
+export async function register(
+  email: string,
+  _password: string, // Not used in backend yet (demo mode)
+  name: string
+): Promise<{ success: boolean; message: string; user?: AuthResponse }> {
+  try {
+    const { data } = await api.post('/users', {
+      email,
+      name,
+      role: 'USER',
+    });
+    
+    return {
+      success: true,
+      message: 'Registration successful! Logging you in...',
+      user: {
+        userId: data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        token: `session-${data.id}-${Date.now()}`,
+      },
+    };
+  } catch (error: any) {
+    const msg = getApiErrorMessage(error);
+    if (error?.response?.status === 400) {
+      throw new Error('Email already registered');
+    }
+    throw new Error(msg || 'Registration failed. Please try again.');
+  }
 }
 
 

@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toastSuccess, toastError } from '@/lib/ui/toast';
 import { useItems, useAuth, useDeleteItem, useUpdateItem } from '@/lib/hooks';
 import { ITEM_CATEGORIES } from '@/lib/utils';
 import type { IItem } from '@/types/IItem';
+import Loading from '@/components/ui/Loading';
+
+function isUuidLike(v?: string | null): v is string {
+  return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
 
 export default function DashboardPage() {
-  const { data: items = [], isLoading } = useItems();
   const { userId } = useAuth();
+  const effectiveReporterId = isUuidLike(userId) ? userId : undefined;
+  const { data: items = [], isLoading } = useItems({ reporter_id: effectiveReporterId });
   const deleteItemMutation = useDeleteItem();
   const updateItemMutation = useUpdateItem();
   
@@ -20,7 +26,7 @@ export default function DashboardPage() {
   });
   
   // Filter items belonging to the current user
-  const myItems = items.filter((i) => i.reporter_id === userId);
+  const myItems = effectiveReporterId ? items : items.filter((i) => i.reporter_id === userId);
   const myLost = myItems.filter((i) => i.status === 'LOST');
   const myFound = myItems.filter((i) => i.status === 'FOUND');
 
@@ -43,23 +49,23 @@ export default function DashboardPage() {
         id: editingItem.id,
         data: editFormData,
       });
-      toast.success('Item updated successfully!');
+      toastSuccess('Item updated successfully!');
       setEditingItem(null);
     } catch (error) {
-      toast.error('Failed to update item');
+      toastError('Failed to update item');
     }
   };
 
-  const handleDelete = async (id: number, title: string) => {
+  const handleDelete = async (id: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete "${title}"?`)) {
       return;
     }
 
     try {
       await deleteItemMutation.mutateAsync({ id });
-      toast.success('Item deleted successfully!');
+      toastSuccess('Item deleted successfully!');
     } catch (error) {
-      toast.error('Failed to delete item');
+      toastError('Failed to delete item');
     }
   };
 
@@ -129,7 +135,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-gray-900">Your Items</h2>
           
-          {isLoading && <p>Loading your items...</p>}
+          {isLoading && <Loading message="Loading your items..." />}
           
           {!isLoading && myItems.length === 0 && (
             <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">

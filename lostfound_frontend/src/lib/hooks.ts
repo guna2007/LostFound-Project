@@ -2,8 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { IItemCreate } from '../types/IItem';
 import { fetchItems, fetchItemById, createItem, updateStatus, updateItem, deleteItem, login as apiLogin, type AuthResponse } from './api';
+import { fetchFlaggedItems, approveItem, rejectItem, flagItem } from './api';
 
-export function useItems(filters?: { status?: 'LOST' | 'FOUND'; category?: string; sortBy?: 'newest' | 'oldest' }) {
+export function useItems(filters?: { status?: 'LOST' | 'FOUND'; category?: string; sortBy?: 'newest' | 'oldest'; query?: string; is_flagged?: boolean; page?: number; page_size?: number; reporter_id?: string }) {
   return useQuery({
     queryKey: ['items', filters],
     queryFn: async () => {
@@ -18,7 +19,46 @@ export function useItems(filters?: { status?: 'LOST' | 'FOUND'; category?: strin
   });
 }
 
-export function useItemById(id: number) {
+// Admin moderation hooks
+export function useFlaggedItems() {
+  return useQuery({ queryKey: ['flaggedItems'], queryFn: fetchFlaggedItems, staleTime: 30_000 });
+}
+
+export function useApproveItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => approveItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['flaggedItems'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+export function useRejectItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => rejectItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['flaggedItems'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+export function useFlagItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => flagItem(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['flaggedItems'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['item'] });
+    },
+  });
+}
+
+export function useItemById(id: string) {
   return useQuery({
     queryKey: ['item', id],
     queryFn: () => fetchItemById(id),
@@ -39,7 +79,7 @@ export function useAddItem() {
 export function useUpdateStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: 'LOST' | 'FOUND' }) => updateStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: 'LOST' | 'FOUND' }) => updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
     },
@@ -49,7 +89,7 @@ export function useUpdateStatus() {
 export function useUpdateItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<IItemCreate> }) => updateItem(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<IItemCreate> }) => updateItem(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
     },
@@ -59,7 +99,7 @@ export function useUpdateItem() {
 export function useDeleteItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id }: { id: number }) => deleteItem(id),
+    mutationFn: ({ id }: { id: string }) => deleteItem({ id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
     },
@@ -89,7 +129,7 @@ export function useAuth() {
           isAdmin: parsed.role === 'ADMIN',
           userId: parsed.userId,
           userEmail: parsed.email,
-          token: parsed.token,
+          token: parsed.token || null,
         };
       } catch {
         return {
@@ -118,7 +158,18 @@ export function useAuth() {
       isAdmin: response.role === 'ADMIN',
       userId: response.userId,
       userEmail: response.email,
-      token: response.token,
+      token: response.token || null,
+    });
+  };
+
+  const loginWithResponse = (response: AuthResponse): void => {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(response));
+    setAuthState({
+      isLoggedIn: true,
+      isAdmin: response.role === 'ADMIN',
+      userId: response.userId,
+      userEmail: response.email,
+      token: response.token || null,
     });
   };
 
@@ -136,6 +187,7 @@ export function useAuth() {
   return {
     ...authState,
     login,
+    loginWithResponse,
     logout,
   };
 }

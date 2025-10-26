@@ -1,4 +1,4 @@
-export function cn(...args: string[]): string {
+export function cn(...args: Array<string | false | undefined | null>): string {
   return args.filter(Boolean).join(' ');
 }
 
@@ -37,6 +37,27 @@ export function getCategoryColor(category: string): string {
       return 'bg-slate-600 text-white';
     default:
       return 'bg-gray-200 text-gray-800';
+  }
+}
+
+// Normalize various error shapes (Axios, Error, unknown) into a user-friendly string
+export function getApiErrorMessage(err: unknown): string {
+  // Axios-style
+  const anyErr = err as any;
+  if (!err) return 'Unknown error';
+  if (anyErr?.isAxiosError) {
+    // Try response message
+    const resp = anyErr.response;
+    if (resp?.data?.message) return String(resp.data.message);
+    if (resp?.data?.error) return String(resp.data.error);
+    if (resp?.statusText) return `${resp.status} ${resp.statusText}`;
+    return `Network error${resp?.status ? ` (${resp.status})` : ''}`;
+  }
+  if (err instanceof Error) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
   }
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toastSuccess, toastError } from '@/lib/ui/toast';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/hooks';
@@ -24,10 +24,10 @@ export default function LoginPage() {
     
     try {
       await login(email, password);
-      toast.success('Login successful!');
+      toastSuccess('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      toastError(error instanceof Error ? error.message : 'Login failed');
     } finally {
       setLoading(false);
     }

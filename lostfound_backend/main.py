@@ -167,6 +167,26 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
     )
 
 
+@app.post("/auth/login", response_model=UserResponse, tags=["Users"])
+def login_user(login_data: dict, db: Session = Depends(get_db)):
+    """Login user by email (no password for demo)"""
+    email = login_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        created_at=user.created_at
+    )
+
+
 # ============================================
 # Item Endpoints (CRUD)
 # ============================================
@@ -299,6 +319,24 @@ def approve_item(item_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     
     item.is_flagged = False
+    db.commit()
+    db.refresh(item)
+    return item_to_response(item)
+
+
+@app.patch("/items/{item_id}/flag", response_model=ItemResponse, tags=["Items"])
+def flag_item(
+    item_id: str,
+    flag_data: dict,
+    db: Session = Depends(get_db)
+):
+    """Flag an item for moderation"""
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    item.is_flagged = True
+    item.flagged_reason = flag_data.get("reason", "Inappropriate content reported by user")
     db.commit()
     db.refresh(item)
     return item_to_response(item)

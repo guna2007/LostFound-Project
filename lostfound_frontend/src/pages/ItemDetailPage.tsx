@@ -1,32 +1,37 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useItemById } from '@/lib/hooks';
+import { toastSuccess, toastError, toastInfo } from '@/lib/ui/toast';
+import { useItemById, useFlagItem } from '@/lib/hooks';
 import { Button } from '@/components/ui/Button';
+import Loading from '@/components/ui/Loading';
 
 export default function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const itemId = id ? parseInt(id, 10) : 0;
+  const itemId = id ?? '';
   
   const { data: item, isLoading, isError } = useItemById(itemId);
+  const flagMutation = useFlagItem();
 
   const handleContactOwner = () => {
-    toast.success('Contact request sent! (Mock action)');
+    toastInfo('Contact feature coming soon! For now, use the contact info above.');
   };
 
-  const handleReportIssue = () => {
-    toast.success('Issue reported to admins! (Mock action)');
+  const handleReportIssue = async () => {
+    if (!itemId) return;
+    
+    const reason = prompt('Please describe the issue with this item:');
+    if (!reason) return;
+
+    try {
+      await flagMutation.mutateAsync({ id: itemId, reason });
+      toastSuccess('Item flagged for admin review!');
+    } catch (error) {
+      toastError('Failed to flag item. Please try again.');
+    }
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">Loading item details...</p>
-        </div>
-      </div>
-    );
+    return <Loading message="Loading item details..." />;
   }
 
   if (isError || !item) {
@@ -179,7 +184,12 @@ export default function ItemDetailPage() {
                 </svg>
                 Contact Owner
               </Button>
-              <Button onClick={handleReportIssue} variant="outline" className="w-full">
+              <Button 
+                onClick={handleReportIssue} 
+                variant="outline" 
+                className="w-full"
+                disabled={flagMutation.isPending || item.is_flagged}
+              >
                 <svg className="mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
@@ -188,7 +198,7 @@ export default function ItemDetailPage() {
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
-                Report Issue
+                {flagMutation.isPending ? 'Reporting...' : item.is_flagged ? 'Already Flagged' : 'Report Issue'}
               </Button>
             </div>
           </div>
